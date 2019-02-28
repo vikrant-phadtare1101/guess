@@ -29,6 +29,9 @@ class Graph {
 }
 
 const support = (feature: string) => {
+  if (typeof document === 'undefined') {
+    return false;
+  }
   const fakeLink = document.createElement('link') as any;
   try {
     if (fakeLink.relList && typeof fakeLink.relList.supports === 'function') {
@@ -40,6 +43,9 @@ const support = (feature: string) => {
 };
 
 const linkPrefetchStrategy = (url: string) => {
+  if (typeof document === 'undefined') {
+    return;
+  }
   const link = document.createElement('link');
   link.setAttribute('rel', 'prefetch');
   link.setAttribute('href', url);
@@ -106,27 +112,37 @@ const handleNavigationChange = (graph: Graph, basePath: string, thresholds: Pref
   }
 };
 
-export interface LinkProbabilities {
+export interface NavigationProbabilities {
   [key: string]: number;
 }
 
-const scoreRoute = (graph: Graph, current: string, links: string[]): LinkProbabilities => {
+const guessNavigation = (graph: Graph, current: string, links?: string[]): NavigationProbabilities => {
   const matches = graph.findMatch(current);
-  return links.reduce((result: LinkProbabilities, link: string) => {
-    const node = matches.filter(m => matchRoute(link, m.route)).pop();
-    if (node) {
-      result[link] = node.probability;
-    }
-    return result;
-  }, {});
+  if (links) {
+    return links.reduce((result: NavigationProbabilities, link: string) => {
+      const node = matches.filter(m => matchRoute(link, m.route)).pop();
+      if (node) {
+        result[link] = node.probability;
+      }
+      return result;
+    }, {});
+  }
+  return matches.reduce(
+    (p: NavigationProbabilities, n) => {
+      p[n.route] = n.probability;
+      return p;
+    },
+    {} as NavigationProbabilities
+  );
 };
 
-export let score = (current: string, links: string[]): LinkProbabilities => {
+export let guess = (current: string, links?: string[]): NavigationProbabilities => {
   throw new Error('Guess is not initialized');
 };
 
 export const initialize = (
   history: History,
+  global: any,
   compressed: CompressedPrefetchGraph,
   map: CompressedGraphMap,
   basePath: string,
@@ -134,13 +150,17 @@ export const initialize = (
   delegate: boolean
 ) => {
   const graph = new Graph(compressed, map);
-  score = (current: string, links: string[]) => scoreRoute(graph, current, links);
+  guess = (current: string, links?: string[]) => guessNavigation(graph, current, links);
 
   if (delegate) {
     return;
   }
 
-  window.addEventListener('popstate', e => handleNavigationChange(graph, basePath, thresholds, location.pathname));
+  if (typeof global.addEventListener === 'function') {
+    global.addEventListener('popstate', (e: any) =>
+      handleNavigationChange(graph, basePath, thresholds, location.pathname)
+    );
+  }
 
   const pushState = history.pushState;
   history.pushState = function(state) {
