@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest --watch",
+    "test:ci": "jest",
     "postinstall": "ts-node infra/install.ts",
     "build": "ts-node infra/build.ts",
     "publish": "ts-node infra/build.ts --publish"
@@ -40,7 +41,7 @@
     "ts-node": "^6.0.2",
     "tslint": "^5.9.1",
     "typescript": "^2.8.1",
-    "webpack": "^3.11.0",
+    "webpack": "^4.7.0",
     "webpack-cli": "^2.0.11"
   },
   "jest": {
